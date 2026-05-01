@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackstar Pizzeria: Slice or Be Sliced</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #c0392b;
+    --dark-red: #7b1a10;
+    --cream: #f5ead6;
+    --charcoal: #1a1a1a;
+    --smoke: #2c2c2c;
+    --gold: #d4a017;
+    --muted: #8a7a6a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--charcoal);
+    color: var(--cream);
+    font-family: 'Courier Prime', monospace;
+    min-height: 100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 41px),
+      repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 41px);
+  }
+
+  .screen { display: none; min-height: 100vh; padding: 20px; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  #intro {
+    text-align: center;
+    background: radial-gradient(ellipse at center, #2a0a05 0%, #1a1a1a 70%);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(42px, 8vw, 90px);
+    color: var(--red);
+    letter-spacing: 4px;
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(192,57,43,0.5);
+  }
+  .tagline {
+    font-family: 'Special Elite', cursive;
+    font-size: clamp(14px, 3vw, 22px);
+    color: var(--gold);
+    margin: 10px 0 40px;
+    letter-spacing: 3px;
+  }
+  .story-box {
+    max-width: 600px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--dark-red);
+    border-radius: 4px;
+    padding: 24px 32px;
+    margin-bottom: 40px;
+    text-align: left;
+    line-height: 1.8;
+    font-size: 15px;
+    color: #d4c9b8;
+  }
+  .story-box p + p { margin-top: 12px; }
+
+  .pizza-progress { display: flex; gap: 12px; margin-bottom: 30px; align-items: center; flex-wrap: wrap; }
+  .pizza-layer {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    border: 1px solid #444;
+    color: #555;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px;
+    transition: all 0.4s;
+  }
+  .pizza-layer.done { border-color: var(--gold); color: var(--gold); background: rgba(212,160,23,0.1); }
+  .pizza-layer.current { border-color: var(--red); color: var(--cream); background: rgba(192,57,43,0.2); }
+
+  .puzzle-screen { width: 100%; max-width: 760px; }
+  .puzzle-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+  .stage-label { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--red); }
+  .puzzle-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 5vw, 48px); color: var(--cream); letter-spacing: 2px; }
+  .puzzle-flavor { color: var(--muted); font-size: 13px; margin-bottom: 24px; font-style: italic; line-height: 1.6; }
+  .puzzle-card { background: var(--smoke); border: 1px solid #3a3a3a; border-radius: 4px; padding: 28px; margin-bottom: 20px; }
+  .puzzle-card h3 { font-family: 'Special Elite', cursive; font-size: 16px; color: var(--gold); margin-bottom: 14px; letter-spacing: 1px; }
+
+  .btn { font-family: 'Bebas Neue', sans-serif; letter-spacing: 3px; font-size: 18px; padding: 14px 40px; border: none; border-radius: 2px; cursor: pointer; transition: all 0.2s; }
+  .btn-red { background: var(--red); color: var(--cream); }
+  .btn-red:hover { background: #e74c3c; transform: translateY(-1px); }
+  .btn-gold { background: var(--gold); color: #1a1a1a; }
+  .btn-gold:hover { background: #e8b420; transform: translateY(-1px); }
+
+  .answer-row { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+  .answer-input {
+    font-family: 'Courier Prime', monospace;
+    font-size: 22px;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    background: #111;
+    border: 2px solid #444;
+    color: var(--cream);
+    padding: 12px 20px;
+    border-radius: 2px;
+    width: 220px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .answer-input:focus { outline: none; border-color: var(--red); }
+  .answer-input.correct { border-color: #27ae60; color: #27ae60; }
+  .answer-input.wrong { border-color: var(--red); animation: shake 0.3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .feedback { font-size: 13px; margin-top: 8px; min-height: 20px; }
+  .feedback.ok { color: #27ae60; }
+  .feedback.err { color: var(--red); }
+
+  /* DOUGH matching */
+  .match-grid { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 8px; align-items: center; }
+  .match-label { background: #111; border: 1px solid #444; border-radius: 2px; padding: 10px 14px; font-size: 14px; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none; }
+  .match-label:hover { border-color: var(--gold); }
+  .match-label.selected { border-color: var(--red); background: rgba(192,57,43,0.15); }
+  .match-label.matched { border-color: #27ae60; background: rgba(39,174,96,0.1); color: #27ae60; pointer-events: none; }
+  .match-arrow { text-align: center; color: #555; font-size: 18px; }
+  .match-slot { background: #111; border: 1px dashed #444; border-radius: 2px; padding: 10px 14px; font-size: 14px; text-align: center; cursor: pointer; transition: all 0.2s; min-height: 42px; }
+  .match-slot:hover { border-color: var(--gold); }
+  .match-slot.filled { border-style: solid; border-color: #27ae60; color: #27ae60; }
+  .match-slot.wrong-fill { border-color: var(--red); animation: shake 0.3s; }
+
+  /* SAUCE - Contexto */
+  .contexto-box {
+    background: #111;
+    border: 2px solid var(--dark-red);
+    border-radius: 4px;
+    padding: 28px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .contexto-clue {
+    font-style: italic;
+    color: #c8aa6e;
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 20px;
+    border-left: 3px solid var(--red);
+    padding-left: 16px;
+    text-align: left;
+  }
+
+  /* CHEESE */
+  .cheese-list { display: flex; flex-direction: column; gap: 10px; }
+  .cheese-item { display: flex; align-items: center; gap: 14px; background: #111; border: 1px solid #3a3a3a; border-radius: 2px; padding: 12px 16px; transition: all 0.2s; }
+  .cheese-item.eliminated { opacity: 0.25; text-decoration: line-through; border-style: dashed; }
+  .cheese-letter { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--red); width: 30px; text-align: center; flex-shrink: 0; }
+  .cheese-info { flex: 1; }
+  .cheese-name { font-weight: 700; font-size: 15px; }
+  .cheese-melt { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .elim-btn { font-size: 11px; padding: 4px 10px; background: transparent; border: 1px solid #555; color: #888; border-radius: 2px; cursor: pointer; font-family: 'Courier Prime', monospace; }
+  .elim-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* HAM slips */
+  .slips-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .slip { background: #f5ead6; color: #1a1a1a; border-radius: 2px; padding: 12px 16px; width: 120px; font-family: 'Special Elite', cursive; font-size: 12px; cursor: grab; border-top: 4px solid var(--red); box-shadow: 2px 2px 8px rgba(0,0,0,0.5); user-select: none; transition: transform 0.1s; }
+  .slip.decoy { border-top-color: #888; opacity: 0.85; }
+  .slip:hover { transform: rotate(-1deg) scale(1.03); }
+  .slip.dragging { opacity: 0.4; transform: scale(0.95); }
+  .slip-time { font-size: 15px; font-weight: bold; color: var(--dark-red); }
+  .slip-weight { font-size: 11px; color: #555; margin-top: 2px; }
+  .slip-letter { font-size: 20px; font-weight: bold; color: #1a1a1a; margin-top: 6px; text-align: right; }
+  .slip-note { font-size: 9px; color: #888; margin-top: 2px; font-style: italic; }
+  .drop-zone { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: 80px; border: 2px dashed #444; border-radius: 4px; padding: 10px; margin-top: 14px; transition: border-color 0.2s; }
+  .drop-zone.drag-over { border-color: var(--gold); }
+  .order-result { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 6px; color: var(--gold); text-align: center; margin-top: 10px; min-height: 36px; }
+  .reset-btn { font-size: 12px; padding: 6px 14px; background: transparent; border: 1px solid #555; color: #888; border-radius: 2px; cursor: pointer; font-family: 'Courier Prime', monospace; margin-top: 8px; }
+  .reset-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* BACON Baconian */
+  .bacon-cipher-grid { display: flex; flex-direction: column; gap: 16px; }
+  .bacon-group { background: #111; border: 1px solid #2a2a2a; border-radius: 2px; padding: 14px 16px; }
+  .bacon-group-label { font-size: 11px; color: var(--muted); margin-bottom: 10px; letter-spacing: 2px; }
+  .bacon-strips-row { display: flex; gap: 8px; align-items: center; }
+  .bacon-strip-visual {
+    width: 44px;
+    height: 22px;
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .bacon-strip-visual:hover { border-color: var(--gold); }
+  .bacon-strip-visual.selected-a { border-color: #f0c040; }
+  .bacon-strip-visual.selected-b { border-color: #c0392b; }
+  .bacon-strip-visual.chewy { background: linear-gradient(135deg, #c87040 0%, #d4884a 40%, #c06030 70%, #b85828 100%); }
+  .bacon-strip-visual.crispy { background: linear-gradient(135deg, #3a1a08 0%, #5a2a10 30%, #2e1005 60%, #4a2010 100%); }
+  .bacon-char { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: #444; margin-left: 10px; min-width: 24px; transition: color 0.2s; }
+  .bacon-char.active { color: var(--gold); }
+  .bacon-key { display: flex; gap: 16px; margin-bottom: 16px; }
+  .bacon-key-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .key-swatch { width: 32px; height: 16px; border-radius: 2px; }
+  .key-chewy { background: linear-gradient(135deg, #c87040, #d4884a); }
+  .key-crispy { background: linear-gradient(135deg, #3a1a08, #5a2a10); }
+  .decoded-display { margin-top: 16px; font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 6px; color: var(--gold); min-height: 32px; }
+
+  .divider { height: 1px; background: #333; margin: 20px 0; }
+
+  /* WIN */
+  #win { text-align: center; background: radial-gradient(ellipse at center, #0a2a05 0%, #1a1a1a 70%); }
+  .win-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 7vw, 80px); color: #27ae60; letter-spacing: 4px; text-shadow: 0 0 40px rgba(39,174,96,0.4); }
+  .final-code { font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 12px; color: var(--gold); background: rgba(0,0,0,0.5); border: 1px solid var(--gold); padding: 20px 40px; border-radius: 4px; margin: 30px 0; }
+
+  .hint-toggle { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; margin-top: 12px; display: inline-block; }
+  .hint-toggle:hover { color: var(--gold); }
+  .hint-box { display: none; background: rgba(212,160,23,0.08); border: 1px solid rgba(212,160,23,0.3); border-radius: 2px; padding: 12px 16px; font-size: 13px; color: #c8aa6e; margin-top: 10px; line-height: 1.6; }
+  .hint-box.visible { display: block; }
+
+  .penalty-banner { display: none; background: rgba(192,57,43,0.2); border: 1px solid var(--red); border-radius: 2px; padding: 10px 16px; font-size: 13px; color: #e74c3c; margin-top: 8px; text-align: center; }
+  .penalty-banner.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ INTRO ═══════════ -->
+<div id="intro" class="screen active">
+  <div class="logo">Blackstar<br>Pizzeria</div>
+  <div class="tagline">Slice or Be Sliced</div>
+  <div class="story-box">
+    <p>You've been locked in Blackstar Pizzeria after hours. The owner left one way out: <strong>make the perfect pizza</strong>.</p>
+    <p>Five ingredients. Five locks. Each puzzle reveals a code. Crack them all and the door opens.</p>
+    <p><em>Three wrong answers on any stage and you're locked out for 60 seconds. Choose wisely.</em></p>
+  </div>
+  <button class="btn btn-red" onclick="goTo('stage1')">BEGIN THE RECIPE</button>
+</div>
+
+<!-- ═══════════ STAGE 1: DOUGH ═══════════ -->
+<div id="stage1" class="screen">
+  <div class="puzzle-screen">
+    <div class="pizza-progress" id="progress1"></div>
+    <div class="puzzle-header"><span class="stage-label">Stage 1 of 5</span></div>
+    <div class="puzzle-title">🌾 The Dough</div>
+    <div class="puzzle-flavor">The recipe card is scrambled. Match each ingredient to its correct measurement. The digit beside each correct match, read top to bottom, gives the 4-digit code.</div>
+    <div class="puzzle-card">
+      <h3>— Recipe Card —</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Click an ingredient, then click its matching amount below.</p>
+      <div class="match-grid" id="matchGrid"></div>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="ans1" maxlength="4" placeholder="????">
+      <button class="btn btn-red" onclick="checkAnswer(1)">LOCK IN</button>
+    </div>
+    <div class="feedback" id="fb1"></div>
+    <div class="penalty-banner" id="pen1"></div>
+    <span class="hint-toggle" onclick="toggleHint('hint1')">Need a hint?</span>
+    <div class="hint-box" id="hint1">Match: Flour→500g, Yeast→7g, Salt→10g, Olive Oil→30ml. Read digits top to bottom.</div>
+  </div>
+</div>
+
+<!-- ═══════════ STAGE 2: SAUCE ═══════════ -->
+<div id="stage2" class="screen">
+  <div class="puzzle-screen">
+    <div class="pizza-progress" id="progress2"></div>
+    <div class="puzzle-header"><span class="stage-label">Stage 2 of 5</span></div>
+    <div class="puzzle-title">🍅 The Sauce</div>
+    <div class="puzzle-flavor">The chef left a cryptic note about the secret sauce. A word is hidden somewhere in its history. Find it.</div>
+    <div class="puzzle-card">
+      <h3>— The Chef's Note —</h3>
+      <div class="contexto-clue">
+        "The sauce is older than this restaurant. It comes from a place where the earth itself burns — where mountains breathe fire and the soil tastes of iron and rain. The tomatoes grown there are thin-skinned and patient. They do not rush. They roast slowly, giving everything. The word you need is what the mountain does."
+      </div>
+      <div class="divider"></div>
+      <div style="text-align:center;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Play the word game below to find the hidden word. Come back and enter it when you've found it.</p>
+        <a href="https://contexto.fun/?game_number=47e7b68c" target="_blank">
+          <button class="btn btn-gold" style="font-size:14px;padding:14px 32px;">🌋 OPEN THE WORD GAME</button>
+        </a>
+        <p style="font-size:11px;color:var(--muted);margin-top:12px;">Opens in a new tab. Find the secret word, then type it below.</p>
+      </div>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="ans2" maxlength="8" placeholder="???????" style="letter-spacing:3px;width:260px;">
+      <button class="btn btn-red" onclick="checkAnswer(2)">LOCK IN</button>
+    </div>
+    <div class="feedback" id="fb2"></div>
+    <div class="penalty-banner" id="pen2"></div>
+    <span class="hint-toggle" onclick="toggleHint('hint2')">Need a hint?</span>
+    <div class="hint-box" id="hint2">Think about what volcanoes do. The word is a single noun. What does a mountain of fire do?</div>
+  </div>
+</div>
+
+<!-- ═══════════ STAGE 3: CHEESE ═══════════ -->
+<div id="stage3" class="screen">
+  <div class="puzzle-screen">
+    <div class="pizza-progress" id="progress3"></div>
+    <div class="puzzle-header"><span class="stage-label">Stage 3 of 5</span></div>
+    <div class="puzzle-title">🧀 The Cheese</div>
+    <div class="puzzle-flavor">The head chef left only cryptic rules — no labels, no guides. Eliminate every cheese that breaks the code. The survivors, in order, spell the answer.</div>
+    <div class="puzzle-card">
+      <h3>— The Chef's Three Laws of Cheese —</h3>
+      <div style="font-size:13px;color:#c8aa6e;line-height:2.2;margin-bottom:16px;border-left:3px solid var(--red);padding-left:16px;">
+        <div>I. <em>"A cheese that burns before it weeps has no place on my pizza."</em></div>
+        <div>II. <em>"If it cannot stretch to reach the edge, leave it on the shelf."</em></div>
+        <div>III. <em>"Anything that needs more than 75 degrees to surrender is too stubborn for my oven."</em></div>
+      </div>
+      <div class="divider"></div>
+      <h3>— The Cheese Vault —</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Eliminate wisely. Wrong eliminations cannot be undone.</p>
+      <div class="cheese-list" id="cheeseList"></div>
+      <div style="margin-top:12px;font-size:13px;color:var(--muted);">Survivors spell: <span id="cheeseCode" style="color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;"></span></div>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="ans3" maxlength="6" placeholder="????">
+      <button class="btn btn-red" onclick="checkAnswer(3)">LOCK IN</button>
+    </div>
+    <div class="feedback" id="fb3"></div>
+    <div class="penalty-banner" id="pen3"></div>
+    <span class="hint-toggle" onclick="toggleHint('hint3')">Need a hint?</span>
+    <div class="hint-box" id="hint3">Law I eliminates: Halloumi. Law II eliminates: Parmesan, Feta, Ricotta, Brie. Law III eliminates: Parmesan, Gruyère. Survivors in list order spell HEAT.</div>
+  </div>
+</div>
+
+<!-- ═══════════ STAGE 4: HAM ═══════════ -->
+<div id="stage4" class="screen">
+  <div class="puzzle-screen">
+    <div class="pizza-progress" id="progress4"></div>
+    <div class="puzzle-header"><span class="stage-label">Stage 4 of 5</span></div>
+    <div class="puzzle-title">🍖 The Ham</div>
+    <div class="puzzle-flavor">Eight delivery slips. Only four are genuine ham deliveries. The rest are decoys — wrong supplier, wrong day, or cancelled. Find the real ones, sort them correctly, read the letters.</div>
+    <div class="puzzle-card">
+      <h3>— Delivery Slips — drag real ones to the order zone —</h3>
+      <p style="font-size:12px;color:#e74c3c;margin-bottom:12px;">⚠ Warning: Decoy slips are mixed in. Check the supplier and status carefully.</p>
+      <div class="slips-container" id="slipsPool"></div>
+      <div class="divider"></div>
+      <p style="font-size:12px;color:var(--muted);">Drag <strong>genuine</strong> slips here in order (earliest time first, lightest weight first if same time):</p>
+      <div class="drop-zone" id="slipsZone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="dropSlip(event)"></div>
+      <div class="order-result" id="slipResult"></div>
+      <button class="reset-btn" onclick="resetSlips()">↺ RESET SLIPS</button>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="ans4" maxlength="5" placeholder="?????">
+      <button class="btn btn-red" onclick="checkAnswer(4)">LOCK IN</button>
+    </div>
+    <div class="feedback" id="fb4"></div>
+    <div class="penalty-banner" id="pen4"></div>
+    <span class="hint-toggle" onclick="toggleHint('hint4')">Need a hint?</span>
+    <div class="hint-box" id="hint4">Real slips only: Supplier must be "Blackstar Farms". Check status = "CONFIRMED". Correct order: 8:00am→C, 11:00am/0.8kg→H, 11:00am/2.1kg→A, 2:45pm→R, 4:30pm→S → spells CHARS... wait, sort again: H,A,M,S — only use the 4 ham slips. Answer: HAMS</div>
+  </div>
+</div>
+
+<!-- ═══════════ STAGE 5: BACON ═══════════ -->
+<div id="stage5" class="screen">
+  <div class="puzzle-screen">
+    <div class="pizza-progress" id="progress5"></div>
+    <div class="puzzle-header"><span class="stage-label">Stage 5 of 5</span></div>
+    <div class="puzzle-title">🥓 The Bacon</div>
+    <div class="puzzle-flavor">The chef encoded the final password using the ancient Baconian Cipher. Each group of 5 strips spells one letter. Chewy (light) = A. Crispy (dark) = B. Decode all four groups.</div>
+    <div class="puzzle-card">
+      <h3>— Baconian Cipher Key —</h3>
+      <div class="bacon-key">
+        <div class="bacon-key-item"><div class="key-swatch key-chewy"></div> Chewy (light) = <strong style="color:var(--gold)">A</strong></div>
+        <div class="bacon-key-item"><div class="key-swatch key-crispy"></div> Crispy (dark) = <strong style="color:var(--red)">B</strong></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Each group of 5 strips encodes one letter. Use the table below to decode.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:12px;background:#111;padding:12px;border:1px solid #2a2a2a;">
+        <div style="color:var(--gold);">A=AAAAA &nbsp; B=AAAAB &nbsp; C=AAABA</div>
+        <div style="color:var(--gold);">D=AAABB &nbsp; E=AABAA &nbsp; F=AABAB</div>
+        <div style="color:var(--gold);">G=AABBA &nbsp; H=AABBB &nbsp; I=ABAAA</div>
+        <div style="color:var(--gold);">J=ABAAB &nbsp; K=ABABA &nbsp; L=ABABB</div>
+        <div style="color:var(--gold);">M=ABBAA &nbsp; N=ABBAB &nbsp; O=ABBBA</div>
+        <div style="color:var(--gold);">P=ABBBB &nbsp; Q=BAAAA &nbsp; R=BAAAB</div>
+        <div style="color:var(--gold);">S=BAABA &nbsp; T=BAABB &nbsp; U=BABAA</div>
+        <div style="color:var(--gold);">V=BABAB &nbsp; W=BABBA &nbsp; X=BABBB</div>
+        <div style="color:var(--gold);">Y=BAAAA &nbsp; Z=BBBBB</div>
+      </div>
+
+      <h3>— The Bacon —</h3>
+      <div class="bacon-cipher-grid" id="baconGrid"></div>
+      <div class="decoded-display" id="decodedWord"></div>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="ans5" maxlength="4" placeholder="????">
+      <button class="btn btn-red" onclick="checkAnswer(5)">LOCK IN</button>
+    </div>
+    <div class="feedback" id="fb5"></div>
+    <div class="penalty-banner" id="pen5"></div>
+    <span class="hint-toggle" onclick="toggleHint('hint5')">Need a hint?</span>
+    <div class="hint-box" id="hint5">FIRE in Baconian: F=AABAB, I=ABAAA, R=BAAAB, E=AABAA. Look for those patterns in the strips. Chewy=A, Crispy=B.</div>
+  </div>
+</div>
+
+<!-- ═══════════ WIN ═══════════ -->
+<div id="win" class="screen">
+  <div class="win-title">Pizza Complete!</div>
+  <p style="color:var(--muted);margin-top:16px;font-size:16px;text-align:center;">You cracked every lock. The door swings open.<br>You walk out into the night, smelling of victory and cheese.</p>
+  <div class="final-code">🍕 ESCAPED 🍕</div>
+  <p style="color:var(--muted);font-size:14px;margin-bottom:30px;text-align:center;">Codes: <span style="color:var(--gold)">7391 · VOLCANO · HEAT · HAMS · FIRE</span></p>
+  <button class="btn btn-red" onclick="goTo('intro');resetAll()">PLAY AGAIN</button>
+</div>
+
+<script>
+// ══════════════════════════════════
+// STATE
+// ══════════════════════════════════
+const answers = { 1:'7391', 2:'VOLCANO', 3:'HEAT', 4:'HAMS', 5:'FIRE' };
+const stageNames = ['DOUGH','SAUCE','CHEESE','HAM','BACON'];
+const wrongCounts = {1:0,2:0,3:0,4:0,5:0};
+const locked = {1:false,2:false,3:false,4:false,5:false};
+
+// ── Navigation ──
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  const m = id.match(/stage(\d)/);
+  if(m) updateProgress(parseInt(m[1]));
+  window.scrollTo(0,0);
+}
+
+function updateProgress(n) {
+  for(let i=1;i<=5;i++){
+    const el=document.getElementById('progress'+i);
+    if(!el) continue;
+    el.innerHTML=stageNames.map((name,idx)=>{
+      let cls='pizza-layer';
+      if(idx+1<n) cls+=' done';
+      else if(idx+1===n) cls+=' current';
+      return `<span class="${cls}">${name}</span>`;
+    }).join('');
+  }
+}
+
+// ── Answer checking with penalty ──
+function checkAnswer(stage) {
+  if(locked[stage]) return;
+  const input=document.getElementById('ans'+stage);
+  const fb=document.getElementById('fb'+stage);
+  const pen=document.getElementById('pen'+stage);
+  const val=input.value.trim().toUpperCase().replace(/\s/g,'');
+  const correct=answers[stage].toUpperCase();
+
+  if(val===correct){
+    input.classList.add('correct');
+    fb.className='feedback ok';
+    fb.textContent='✓ Correct! Unlocking next stage...';
+    pen.classList.remove('visible');
+    setTimeout(()=>{
+      if(stage<5) goTo('stage'+(stage+1));
+      else goTo('win');
+    },1200);
+  } else {
+    wrongCounts[stage]++;
+    input.className='answer-input wrong';
+    setTimeout(()=>input.classList.remove('wrong'),400);
+    fb.className='feedback err';
+    if(wrongCounts[stage]>=3){
+      locked[stage]=true;
+      pen.classList.add('visible');
+      pen.textContent='🔒 Too many wrong answers! Locked for 60 seconds...';
+      fb.textContent='';
+      setTimeout(()=>{
+        locked[stage]=false;
+        wrongCounts[stage]=0;
+        pen.classList.remove('visible');
+        pen.textContent='';
+        fb.textContent='Lock released. Try again.';
+      },60000);
+    } else {
+      fb.textContent=`✗ Wrong. ${3-wrongCounts[stage]} attempt${3-wrongCounts[stage]===1?'':'s'} remaining before lockout.`;
+    }
+  }
+}
+
+function toggleHint(id){
+  document.getElementById(id).classList.toggle('visible');
+}
+
+// ══════════════════════════════════
+// PUZZLE 1: DOUGH MATCHING
+// ══════════════════════════════════
+const matchData=[
+  {ingredient:'Flour',     amount:'500g',  digit:'7'},
+  {ingredient:'Yeast',     amount:'7g',    digit:'3'},
+  {ingredient:'Salt',      amount:'10g',   digit:'9'},
+  {ingredient:'Olive Oil', amount:'30ml',  digit:'1'},
+];
+let selectedIngIdx=null, selectedAmt=null, matched={};
+
+function buildMatchGrid(){
+  matched={}; selectedIngIdx=null; selectedAmt=null;
+  const grid=document.getElementById('matchGrid');
+  const shuffled=[...matchData].sort(()=>Math.random()-0.5);
+  grid.innerHTML=matchData.map((item,i)=>`
+    <div class="match-label" id="ing_${i}" onclick="selectIngredient(${i})">${item.ingredient}</div>
+    <div class="match-arrow">→</div>
+    <div class="match-slot" id="slot_${i}"><span id="slot_text_${i}" style="color:var(--muted)">— pick —</span></div>
+  `).join('')+`
+  <div style="grid-column:1/-1;margin-top:16px;border-top:1px solid #333;padding-top:14px;">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Amounts:</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;" id="amountPool">
+      ${shuffled.map((a,i)=>`<div class="match-label" id="amt_${i}" onclick="selectAmount('${a.amount}')">${a.amount}</div>`).join('')}
+    </div>
+  </div>
+  <div style="grid-column:1/-1;margin-top:12px;font-size:13px;color:var(--muted);">
+    Digits: <span id="digitReveal" style="color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;"></span>
+  </div>`;
+}
+
+function selectIngredient(idx){
+  if(matched[idx]) return;
+  selectedIngIdx=idx;
+  document.querySelectorAll('[id^="ing_"]').forEach(e=>e.classList.remove('selected'));
+  document.getElementById('ing_'+idx).classList.add('selected');
+  if(selectedAmt!==null) tryMatchNow();
+}
+
+function selectAmount(amt){
+  selectedAmt=amt;
+  if(selectedIngIdx!==null) tryMatchNow();
+}
+
+function tryMatchNow(){
+  const item=matchData[selectedIngIdx];
+  const slot=document.getElementById('slot_'+selectedIngIdx);
+  const slotText=document.getElementById('slot_text_'+selectedIngIdx);
+  if(item.amount===selectedAmt){
+    matched[selectedIngIdx]=true;
+    slotText.textContent=selectedAmt+'  →  ['+item.digit+']';
+    slot.classList.add('filled');
+    document.getElementById('ing_'+selectedIngIdx).classList.remove('selected');
+    document.getElementById('ing_'+selectedIngIdx).classList.add('matched');
+    document.querySelectorAll('#amountPool .match-label').forEach(e=>{if(e.textContent===selectedAmt)e.style.display='none';});
+    const code=matchData.map((d,i)=>matched[i]?d.digit:'_').join('');
+    document.getElementById('digitReveal').textContent=code;
+    if(Object.keys(matched).length===4) document.getElementById('ans1').value=code;
+  } else {
+    slot.classList.add('wrong-fill');
+    setTimeout(()=>slot.classList.remove('wrong-fill'),400);
+  }
+  selectedIngIdx=null; selectedAmt=null;
+  document.querySelectorAll('[id^="ing_"]').forEach(e=>e.classList.remove('selected'));
+}
+
+// ══════════════════════════════════
+// PUZZLE 3: CHEESE
+// ══════════════════════════════════
+// Survivors in list order spell HEAT (H,E,A,T scrambled among decoys)
+const cheeses=[
+  {name:'Halloumi',   letter:'X', melt:'Browns and chars before melting · non-stretchy · 80°C',    keep:false},
+  {name:'Mozzarella', letter:'H', melt:'55°C · very stretchy · stays pale · melts evenly',          keep:true},
+  {name:'Parmesan',   letter:'X', melt:'82°C · crumbles · non-stretchy · grainy dry texture',       keep:false},
+  {name:'Fontina',    letter:'E', melt:'62°C · stretchy · creamy · does not brown early',            keep:true},
+  {name:'Ricotta',    letter:'X', melt:'Separates rather than melts · watery · non-stretchy',        keep:false},
+  {name:'Scamorza',   letter:'A', melt:'58°C · very stretchy · mild smoke · melts beautifully',     keep:true},
+  {name:'Brie',       letter:'X', melt:'Turns oily when heated · runny · not stretchy',              keep:false},
+  {name:'Provolone',  letter:'T', melt:'65°C · stretchy · mild golden colour · good melt',           keep:true},
+  {name:'Gruyère',    letter:'X', melt:'78°C · slightly stretchy · strong flavour · too stubborn',   keep:false},
+  {name:'Feta',       letter:'X', melt:'Does not melt · crumbles when heated · non-stretchy',        keep:false},
+];
+let eliminated={};
+
+function buildCheeseList(){
+  eliminated={};
+  const list=document.getElementById('cheeseList');
+  list.innerHTML=cheeses.map((c,i)=>`
+    <div class="cheese-item" id="ch_${i}">
+      <div class="cheese-letter">${c.letter}</div>
+      <div class="cheese-info">
+        <div class="cheese-name">${c.name}</div>
+        <div class="cheese-melt">${c.melt}</div>
+      </div>
+      <button class="elim-btn" onclick="eliminateCheese(${i})">ELIMINATE</button>
+    </div>`).join('');
+}
+
+function eliminateCheese(i){
+  eliminated[i]=true;
+  document.getElementById('ch_'+i).classList.add('eliminated');
+  const remaining=cheeses.filter((_,idx)=>!eliminated[idx]);
+  const kept=remaining.filter(c=>c.keep);
+  document.getElementById('cheeseCode').textContent=kept.map(c=>c.letter).join('');
+  document.getElementById('ans3').value=remaining.map(c=>c.letter).join('');
+}
+
+// ══════════════════════════════════
+// PUZZLE 4: HAM SLIPS
+// ══════════════════════════════════
+const allSlips=[
+  // REAL slips — supplier Blackstar Farms, CONFIRMED
+  {time:'9:15am',  weight:'1.2kg', letter:'H', real:true,  supplier:'Blackstar Farms', status:'CONFIRMED'},
+  {time:'11:00am', weight:'0.8kg', letter:'A', real:true,  supplier:'Blackstar Farms', status:'CONFIRMED'},
+  {time:'11:00am', weight:'2.1kg', letter:'M', real:true,  supplier:'Blackstar Farms', status:'CONFIRMED'},
+  {time:'3:30pm',  weight:'1.5kg', letter:'S', real:true,  supplier:'Blackstar Farms', status:'CONFIRMED'},
+  // DECOYS — show fake letters to confuse
+  {time:'7:00am',  weight:'0.5kg', letter:'B', real:false, supplier:'Metro Meats',     status:'CONFIRMED'},
+  {time:'11:00am', weight:'1.1kg', letter:'T', real:false, supplier:'Blackstar Farms', status:'CANCELLED'},
+  {time:'1:00pm',  weight:'2.0kg', letter:'R', real:false, supplier:'Sunrise Foods',   status:'CONFIRMED'},
+  {time:'3:30pm',  weight:'0.9kg', letter:'K', real:false, supplier:'Blackstar Farms', status:'PENDING'},
+];
+let draggedSlip=null, slipOrder=[];
+
+function buildSlips(){
+  slipOrder=[];
+  const pool=document.getElementById('slipsPool');
+  const shuffled=[...allSlips].sort(()=>Math.random()-0.5);
+  pool.innerHTML=shuffled.map((s,i)=>`
+    <div class="slip" draggable="true" data-idx="${allSlips.indexOf(s)}"
+      ondragstart="draggedSlip=${allSlips.indexOf(s)};this.classList.add('dragging')"
+      ondragend="this.classList.remove('dragging')">
+      <div class="slip-time">${s.time}</div>
+      <div class="slip-weight">${s.weight}</div>
+      <div style="font-size:10px;color:#555;margin-top:3px;">${s.supplier}</div>
+      <div style="font-size:10px;color:${s.status==='CONFIRMED'?'#27ae60':s.status==='CANCELLED'?'#c0392b':'#d4a017'};margin-top:2px;">${s.status}</div>
+      <div class="slip-letter">${s.letter}</div>
+    </div>`).join('');
+  document.getElementById('slipsZone').innerHTML='';
+  document.getElementById('slipResult').textContent='';
+  document.getElementById('ans4').value='';
+}
+
+function resetSlips(){ buildSlips(); }
+
+function dropSlip(e){
+  e.preventDefault();
+  const zone=document.getElementById('slipsZone');
+  zone.classList.remove('drag-over');
+  if(draggedSlip===null||slipOrder.includes(draggedSlip)) return;
+  const s=allSlips[draggedSlip];
+  slipOrder.push(draggedSlip);
+  zone.innerHTML+=`
+    <div class="slip" style="cursor:default;">
+      <div class="slip-time">${s.time}</div>
+      <div class="slip-weight">${s.weight}</div>
+      <div style="font-size:10px;color:#555;">${s.supplier}</div>
+      <div style="font-size:10px;color:${s.status==='CONFIRMED'?'#27ae60':s.status==='CANCELLED'?'#c0392b':'#d4a017'}">${s.status}</div>
+      <div class="slip-letter">${s.letter}</div>
+    </div>`;
+  document.querySelector(`#slipsPool .slip[data-idx="${draggedSlip}"]`).style.display='none';
+  const realLetters=slipOrder.filter(i=>allSlips[i].real).map(i=>allSlips[i].letter).join('');
+  document.getElementById('slipResult').textContent=realLetters;
+  document.getElementById('ans4').value=realLetters;
+  draggedSlip=null;
+}
+
+// ══════════════════════════════════
+// PUZZLE 5: BACON — BACONIAN CIPHER
+// ══════════════════════════════════
+// FIRE = F(AABAB) I(ABAAA) R(BAAAB) E(AABAA)
+const baconianCode=[
+  {letter:'F', pattern:['A','A','B','A','B']},
+  {letter:'I', pattern:['A','B','A','A','A']},
+  {letter:'R', pattern:['B','A','A','A','B']},
+  {letter:'E', pattern:['A','A','B','A','A']},
+];
+
+function buildBaconGrid(){
+  const grid=document.getElementById('baconGrid');
+  grid.innerHTML=baconianCode.map((group,gi)=>`
+    <div class="bacon-group">
+      <div class="bacon-group-label">GROUP ${gi+1} OF 4 — decode this letter</div>
+      <div class="bacon-strips-row">
+        ${group.pattern.map((type)=>`
+          <div class="bacon-strip-visual ${type==='A'?'chewy':'crispy'}" title="${type==='A'?'Chewy = A':'Crispy = B'}"></div>
+        `).join('')}
+        <div class="bacon-char" id="bchar_${gi}">?</div>
+      </div>
+    </div>`).join('');
+}
+
+// Baconian lookup
+const baconTable={
+  'AAAAA':'A','AAAAB':'B','AAABA':'C','AAABB':'D','AABAA':'E',
+  'AABAB':'F','AABBA':'G','AABBB':'H','ABAAA':'I','ABAAB':'J',
+  'ABABA':'K','ABABB':'L','ABBAA':'M','ABBAB':'N','ABBBA':'O',
+  'ABBBB':'P','BAAAA':'Q','BAAAB':'R','BAABA':'S','BAABB':'T',
+  'BABAA':'U','BABAB':'V','BABBA':'W','BABBB':'X','BAAAA':'Y','BBBBB':'Z'
+};
+
+function updateBaconDecode(){
+  const decoded=baconianCode.map((g,gi)=>{
+    const key=g.pattern.join('');
+    const letter=baconTable[key]||'?';
+    const el=document.getElementById('bchar_'+gi);
+    if(el){ el.textContent=letter; el.classList.add('active'); }
+    return letter;
+  }).join('');
+  document.getElementById('decodedWord').textContent=decoded;
+  document.getElementById('ans5').value=decoded;
+}
+
+// ══════════════════════════════════
+// RESET
+// ══════════════════════════════════
+function resetAll(){
+  for(let i=1;i<=5;i++){
+    wrongCounts[i]=0; locked[i]=false;
+    const inp=document.getElementById('ans'+i);
+    if(inp){inp.value='';inp.className='answer-input';}
+    const fb=document.getElementById('fb'+i);
+    if(fb){fb.textContent='';fb.className='feedback';}
+    const pen=document.getElementById('pen'+i);
+    if(pen) pen.classList.remove('visible');
+  }
+  buildMatchGrid();
+  buildCheeseList();
+  buildSlips();
+  buildBaconGrid();
+  eliminated={};
+}
+
+// ── Enter key ──
+for(let i=1;i<=5;i++){
+  document.addEventListener('DOMContentLoaded',()=>{
+    const inp=document.getElementById('ans'+i);
+    if(inp) inp.addEventListener('keydown',e=>{if(e.key==='Enter')checkAnswer(i);});
+  });
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded',()=>{
+  buildMatchGrid();
+  buildCheeseList();
+  buildSlips();
+  buildBaconGrid();
+});
+</script>
+</body>
+</html>
